@@ -21,8 +21,77 @@ class QueryManagerImpl implements QueryManager {
     throw new UnsupportedError("TODO");
   }
 
-  // TODO utilizzare il tipo del valore per capire la conversione
-  convertValue(value, {QueryValueType type}) => value;
+  convertValue(value, {QueryValueType type}) {
+    if (type == null) {
+      return value;
+    } else if (type == QueryValueType.STRING) {
+      if (value is String || value == null) {
+        return value;
+      } else if (value is DateTime) {
+        return value.toIso8601String();
+      } else {
+        return value.toString();
+      }
+    } else if (type == QueryValueType.BOOL) {
+      if (value is bool || value == null) {
+        return value;
+      } else if (value is num) {
+        if (value == 1) {
+          return true;
+        } else if (value == 0) {
+          return false;
+        }
+      }
+
+      throw new ArgumentError("Invalid bool value $value");
+    } else if (type == QueryValueType.DATETIME) {
+      if (value is DateTime || value == null) {
+        return value?.toUtc();
+      } else if (value is String) {
+        return DateTime.parse(value).toUtc();
+      }
+
+      throw new ArgumentError("Invalid datetime value $value");
+    } else if (type == QueryValueType.DATE) {
+      if (value is DateTime || value == null) {
+        // TODO pulire il time
+        return value;
+      } else if (value is String) {
+        // TODO pulire il time
+        return DateTime.parse(value);
+      }
+
+      throw new ArgumentError("Invalid date value $value");
+    } else if (type == QueryValueType.TIME) {
+      if (value is DateTime || value == null) {
+        // TODO pulire la data
+        return value;
+      } else if (value is String) {
+        // TODO pulire la data
+        return DateTime.parse(value);
+      }
+
+      throw new ArgumentError("Invalid time value $value");
+    } else if (type == QueryValueType.INT) {
+      if (value is int || value == null) {
+        return value;
+      } else if (value is String) {
+        return int.parse(value);
+      }
+
+      throw new ArgumentError("Invalid int value $value");
+    } else if (type == QueryValueType.DOUBLE) {
+      if (value is double || value == null) {
+        return value;
+      } else if (value is String) {
+        return double.parse(value);
+      }
+
+      throw new ArgumentError("Invalid double value $value");
+    } else {
+      throw new UnsupportedError("Invalid value type $type");
+    }
+  }
 
   QueryValueType getValueType(value) {
     if (value is String) {
@@ -53,7 +122,7 @@ class QueryManagerImpl implements QueryManager {
       }
     }
 
-    throw new ArgumentError("Unknown identifier for: $column");
+    throw new ArgumentError("Unknown column identifier for: $column");
   }
 
   QueryResultImpl createQueryResult(Query query, List<String> columnIdentifiers,
@@ -270,11 +339,8 @@ class QueryResultRowImpl implements QueryResultRow {
   DateTime getTime(column) => get(column, type: QueryValueType.TIME);
 
   @override
-  bool contains(column) {
-    var columnIdentifier = queryManager.getColumnIdentifier(column);
-
-    return columnIdentifiers.contains(columnIdentifier);
-  }
+  bool contains(column) =>
+      columnIdentifiers.contains(queryManager.getColumnIdentifier(column));
 
   @override
   get(column, {QueryValueType type}) {

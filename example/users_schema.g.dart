@@ -21,6 +21,9 @@ abstract class USERSDB_Schema implements SqlSchema {
 class _USERSDB_SchemaImpl extends SqlSchemaImpl implements USERSDB_Schema {
   _USERSDB_SchemaImpl(String name) : super(name);
 
+  _USERSDB_SchemaImpl.cloneFrom(_USERSDB_SchemaImpl target, bool freeze)
+      : super.cloneFrom(target, freeze);
+
   @override
   USERS_Table get USERS => this["USERS"];
 
@@ -36,6 +39,12 @@ class _USERSDB_SchemaImpl extends SqlSchemaImpl implements USERSDB_Schema {
     }
   }
 
+  @override
+  _USERSDB_SchemaImpl clone({bool freeze}) => super.clone(freeze: freeze);
+
+  @override
+  _USERSDB_SchemaImpl createClone(bool freeze) =>
+      new _USERSDB_SchemaImpl.cloneFrom(this, freeze);
 }
 
 abstract class USERS_Table implements SqlTable {
