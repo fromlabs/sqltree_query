@@ -30,17 +30,15 @@ abstract class QueryParameters {
 
 abstract class QueryResultColumnTypes {
   void operator []=(column, QueryValueType type);
-  void setType(column, QueryValueType type);
-  void setBoolType(column);
-  void setDateTimeType(column);
-  void setDateType(column);
-  void setTimeType(column);
+  void setBool(column);
+  void setDateTime(column);
+  void setDate(column);
+  void setTime(column);
 }
 
 class QueryValueType {
   static const QueryValueType STRING = const QueryValueType("STRING");
-  static const QueryValueType INT = const QueryValueType("INT");
-  static const QueryValueType DOUBLE = const QueryValueType("DOUBLE");
+  static const QueryValueType NUM = const QueryValueType("NUM");
   static const QueryValueType BOOL = const QueryValueType("BOOL");
   static const QueryValueType DATETIME = const QueryValueType("DATETIME");
   static const QueryValueType DATE = const QueryValueType("DATE");
@@ -75,12 +73,9 @@ abstract class QueryResultRow {
   operator [](dynamic column);
   get(column, {QueryValueType type});
   String getString(column);
-  int getInt(column);
-  double getDouble(column);
+  num getNum(column);
   bool getBool(column);
   DateTime getDateTime(column);
   DateTime getDate(column);
   DateTime getTime(column);
-
-  Map<String, dynamic> get asMap;
 }

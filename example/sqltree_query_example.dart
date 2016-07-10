@@ -16,8 +16,8 @@ main() async {
   query.parameters.set("status", true, type: QueryValueType.BOOL);
   // tipi colonne risultati
   query.resultColumnTypes["status"] = QueryValueType.BOOL;
-  query.resultColumnTypes.setBoolType("status");
-  query.resultColumnTypes.setType("status", QueryValueType.BOOL);
+  query.resultColumnTypes.setBool("status");
+  query.resultColumnTypes["status"] = QueryValueType.BOOL;
 
   // 2. esecuzione della query e recupero ResultSet
   var result = await queryManager.execute(query);

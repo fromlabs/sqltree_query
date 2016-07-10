@@ -13,27 +13,33 @@ class QueryManagerImpl implements QueryManager {
   @override
   Query create(SqlStatement statement) => createQuery(statement);
 
-  Query createQuery(SqlStatement statement) => new QueryImpl(statement, this);
-
   @override
   Future<QueryResult> execute(Query query) {
     // TODO: implement execute
     throw new UnsupportedError("TODO");
   }
 
+  prepareParameterValue(value, {QueryValueType type}) =>
+      convertValue(value, type: type);
+
+  prepareColumnValue(value, {QueryValueType type}) =>
+      convertValue(value, type: type);
+
   convertValue(value, {QueryValueType type}) {
-    if (type == null) {
+    if (type == null || value == null) {
       return value;
     } else if (type == QueryValueType.STRING) {
-      if (value is String || value == null) {
+      if (value is String) {
         return value;
       } else if (value is DateTime) {
+        checkUtcDateTime(value);
+
         return value.toIso8601String();
       } else {
         return value.toString();
       }
     } else if (type == QueryValueType.BOOL) {
-      if (value is bool || value == null) {
+      if (value is bool) {
         return value;
       } else if (value is num) {
         if (value == 1) {
@@ -45,49 +51,55 @@ class QueryManagerImpl implements QueryManager {
 
       throw new ArgumentError("Invalid bool value $value");
     } else if (type == QueryValueType.DATETIME) {
-      if (value is DateTime || value == null) {
-        return value?.toUtc();
+      if (value is DateTime) {
+        checkUtcDateTime(value);
+
+        return value;
       } else if (value is String) {
-        return DateTime.parse(value).toUtc();
+        var dateTime = DateTime.parse(value);
+
+        checkUtcDateTime(dateTime);
+
+        return dateTime;
       }
 
       throw new ArgumentError("Invalid datetime value $value");
     } else if (type == QueryValueType.DATE) {
-      if (value is DateTime || value == null) {
-        // TODO pulire il time
-        return value;
+      if (value is DateTime) {
+        checkUtcDateTime(value);
+
+        return getDateTimeWithoutTime(value);
       } else if (value is String) {
-        // TODO pulire il time
-        return DateTime.parse(value);
+        var dateTime = DateTime.parse(value);
+
+        checkUtcDateTime(dateTime);
+
+        return getDateTimeWithoutTime(dateTime);
       }
 
       throw new ArgumentError("Invalid date value $value");
     } else if (type == QueryValueType.TIME) {
-      if (value is DateTime || value == null) {
-        // TODO pulire la data
-        return value;
+      if (value is DateTime) {
+        checkUtcDateTime(value);
+
+        return getDateTimeWithoutDate(value);
       } else if (value is String) {
-        // TODO pulire la data
-        return DateTime.parse(value);
+        var dateTime = DateTime.parse(value);
+
+        checkUtcDateTime(dateTime);
+
+        return getDateTimeWithoutDate(dateTime);
       }
 
       throw new ArgumentError("Invalid time value $value");
-    } else if (type == QueryValueType.INT) {
-      if (value is int || value == null) {
+    } else if (type == QueryValueType.NUM) {
+      if (value is num) {
         return value;
       } else if (value is String) {
-        return int.parse(value);
+        return num.parse(value);
       }
 
-      throw new ArgumentError("Invalid int value $value");
-    } else if (type == QueryValueType.DOUBLE) {
-      if (value is double || value == null) {
-        return value;
-      } else if (value is String) {
-        return double.parse(value);
-      }
-
-      throw new ArgumentError("Invalid double value $value");
+      throw new ArgumentError("Invalid num value $value");
     } else {
       throw new UnsupportedError("Invalid value type $type");
     }
@@ -100,18 +112,18 @@ class QueryManagerImpl implements QueryManager {
       return QueryValueType.BOOL;
     } else if (value is DateTime) {
       return QueryValueType.DATETIME;
-    } else if (value is double) {
-      return QueryValueType.DOUBLE;
-    } else if (value is int) {
-      return QueryValueType.INT;
+    } else if (value is num) {
+      return QueryValueType.NUM;
     }
 
     return null;
   }
 
-  String getColumnIdentifier(column) {
+  String getColumnIdentifier(column, {bool throwsError: true}) {
     if (column is String) {
       return column;
+    } else if (column is int) {
+      return column.toString();
     } else if (column is schema.SqlColumn) {
       return column.qualifiedName;
     } else if (column is SqlNode) {
@@ -122,86 +134,82 @@ class QueryManagerImpl implements QueryManager {
       }
     }
 
-    throw new ArgumentError("Unknown column identifier for: $column");
+    if (throwsError) {
+      throw new ArgumentError("Unknown column identifier for: $column");
+    } else {
+      return null;
+    }
   }
 
-  QueryResultImpl createQueryResult(Query query, List<String> columnIdentifiers,
-          List<SqlNode> columns, List<List> rows) =>
-      new QueryResultImpl(query, columnIdentifiers, columns, rows, this);
+  Query createQuery(SqlStatement statement) => new QueryImpl(this, statement);
+
+  QueryResultImpl createSelectQueryResult(
+          QueryImpl query,
+          List<SqlNode> columns,
+          Map<String, int> columnIdentifierIndexes,
+          List<QueryValueType> indexedColumnTypes,
+          Map<String, QueryValueType> namedColumnTypes,
+          List<List> rows) =>
+      new QueryResultImpl.select(query, columns, columnIdentifierIndexes,
+          indexedColumnTypes, namedColumnTypes, rows);
+
+  QueryResultImpl createUpdateQueryResult(
+          QueryImpl query, int affectedRows, int lastInsertId) =>
+      new QueryResultImpl.update(query, affectedRows, lastInsertId);
+
+  void checkUtcDateTime(DateTime dateTime) {
+    if (!dateTime.isUtc) {
+      throw new ArgumentError("Value is not in UTC $dateTime");
+    }
+  }
+
+  DateTime getDateTimeWithoutTime(DateTime dateTime) =>
+      dateTime.subtract(new Duration(
+          hours: dateTime.hour,
+          minutes: dateTime.minute,
+          seconds: dateTime.second,
+          milliseconds: dateTime.millisecond,
+          microseconds: dateTime.microsecond));
+
+  DateTime getDateTimeWithoutDate(DateTime dateTime) => new DateTime.utc(
+      0,
+      1,
+      1,
+      dateTime.hour,
+      dateTime.minute,
+      dateTime.second,
+      dateTime.millisecond,
+      dateTime.microsecond);
 }
 
 class QueryImpl implements Query {
-  final QueryManagerImpl _queryManager;
+  final QueryManagerImpl queryManager;
 
   final SqlStatement statement;
+
   QueryParameters parameters;
+
   QueryResultColumnTypes resultColumnTypes;
 
-  QueryImpl(this.statement, this._queryManager) {
+  QueryImpl(this.queryManager, this.statement) {
     parameters = createQueryParameters();
     resultColumnTypes = createQueryResultColumnTypes();
   }
 
-  QueryManager get queryManager => _queryManager;
-
-  QueryParameters createQueryParameters() =>
-      new QueryParametersImpl(_queryManager);
+  QueryParameters createQueryParameters() => new QueryParametersImpl(this);
 
   QueryResultColumnTypes createQueryResultColumnTypes() =>
-      new QueryResultColumnTypesImpl(_queryManager);
-}
-
-class QueryResultImpl implements QueryResult {
-  final Query query;
-
-  final QueryManagerImpl queryManager;
-
-  final List<QueryResultRow> _rows = [];
-
-  QueryResultImpl(this.query, List<String> columnIdentifiers,
-      List<SqlNode> columns, List<List> rows, this.queryManager) {
-    for (List row in rows) {
-      _rows.add(createQueryResultRow(columnIdentifiers, columns, row));
-    }
-  }
-
-  @override
-  bool get isResultSet {
-    // TODO: implement isResultSet
-    throw new UnsupportedError("TODO");
-  }
-
-  @override
-  int get affectedRows {
-    // TODO: implement affectedRows
-    throw new UnsupportedError("TODO");
-  }
-
-  @override
-  int get lastInsertId {
-    // TODO: implement lastInsertId
-    throw new UnsupportedError("TODO");
-  }
-
-  @override
-  List<QueryResultRow> get rows => new UnmodifiableListView(_rows);
-
-  QueryResultRow createQueryResultRow(
-          List<String> columnIdentifiers, List<SqlNode> columns, List row) =>
-      new QueryResultRowImpl(
-          query, columnIdentifiers, columns, row, queryManager);
+      new QueryResultColumnTypesImpl(this);
 }
 
 class QueryParametersImpl implements QueryParameters {
-  final QueryManagerImpl _queryManager;
+  final Map<dynamic, QueryParameter> parameters = {};
 
-  final Map<String, QueryParameter> _parameters = {};
+  final QueryImpl query;
 
-  QueryParametersImpl(this._queryManager);
+  QueryParametersImpl(this.query);
 
-  QueryManager get queryManager => _queryManager;
-
-  Map<String, QueryParameter> get asMap => new UnmodifiableMapView(_parameters);
+  QueryManagerImpl get queryManager => query.queryManager;
 
   @override
   void operator []=(parameter, value) {
@@ -230,9 +238,7 @@ class QueryParametersImpl implements QueryParameters {
 
   @override
   void set(parameter, value, {QueryValueType type}) {
-    parameter = _queryManager.getColumnIdentifier(parameter);
-
-    _parameters[parameter] = createQueryParameter(value, type: type);
+    parameters[parameter] = createQueryParameter(value, type: type);
   }
 
   QueryParameter createQueryParameter(value, {QueryValueType type}) =>
@@ -240,79 +246,133 @@ class QueryParametersImpl implements QueryParameters {
 }
 
 class QueryResultColumnTypesImpl implements QueryResultColumnTypes {
-  final QueryManagerImpl _queryManager;
+  final Map<dynamic, QueryValueType> columnTypes = {};
 
-  final Map<String, QueryValueType> _columnTypes = {};
+  final QueryImpl query;
 
-  QueryResultColumnTypesImpl(this._queryManager);
+  QueryResultColumnTypesImpl(this.query);
 
-  QueryManager get queryManager => _queryManager;
-
-  Map<String, QueryValueType> get asMap =>
-      new UnmodifiableMapView(_columnTypes);
-
-  QueryValueType operator [](column) => getType(column);
+  QueryManagerImpl get queryManager => query.queryManager;
 
   @override
   void operator []=(column, QueryValueType type) {
-    setType(column, type);
+    columnTypes[column] = type;
   }
 
   @override
-  void setBoolType(column) {
-    setType(column, QueryValueType.BOOL);
+  void setBool(column) {
+    this[column] = QueryValueType.BOOL;
   }
 
   @override
-  void setDateTimeType(column) {
-    setType(column, QueryValueType.DATETIME);
+  void setDateTime(column) {
+    this[column] = QueryValueType.DATETIME;
   }
 
   @override
-  void setDateType(column) {
-    setType(column, QueryValueType.DATE);
+  void setDate(column) {
+    this[column] = QueryValueType.DATE;
   }
 
   @override
-  void setTimeType(column) {
-    setType(column, QueryValueType.TIME);
-  }
-
-  @override
-  void setType(column, QueryValueType type) {
-    column = _queryManager.getColumnIdentifier(column);
-
-    _columnTypes[column] = type;
-  }
-
-  QueryValueType getType(column) {
-    column = _queryManager.getColumnIdentifier(column);
-
-    return _columnTypes[column];
+  void setTime(column) {
+    this[column] = QueryValueType.TIME;
   }
 }
 
-class QueryResultRowImpl implements QueryResultRow {
-  final Query query;
-  final QueryManagerImpl queryManager;
-
-  final List<String> columnIdentifiers;
-  final List<SqlNode> columns;
-  final List values;
-
-  QueryResultRowImpl(this.query, this.columnIdentifiers, this.columns,
-      this.values, this.queryManager);
+class QueryResultImpl implements QueryResult {
+  List<QueryResultRow> _rows;
 
   @override
-  Map<String, dynamic> get asMap {
-    var valueMap = <String, dynamic>{};
+  final int affectedRows;
 
-    for (var column in columnIdentifiers) {
-      valueMap[column] = this[column];
-    }
+  @override
+  final int lastInsertId;
 
-    return valueMap;
+  final List<SqlNode> columns;
+
+  final Map<String, int> columnIdentifierIndexes;
+
+  final List<QueryValueType> indexedColumnTypes;
+
+  final Map<String, QueryValueType> namedColumnTypes;
+
+  final QueryImpl query;
+
+  QueryResultImpl.select(this.query, this.columns, this.columnIdentifierIndexes,
+      this.indexedColumnTypes, this.namedColumnTypes, List<List> data)
+      : this.affectedRows = data.length,
+        this.lastInsertId = null {
+    this._rows = new UnmodifiableListView(
+        data.map((rowData) => createQueryResultRow(rowData)));
   }
+
+  QueryResultImpl.update(this.query, this.affectedRows, this.lastInsertId)
+      : this._rows = null,
+        this.columns = null,
+        this.indexedColumnTypes = null,
+        this.namedColumnTypes = null,
+        this.columnIdentifierIndexes = null;
+
+  @override
+  List<QueryResultRow> get rows => new UnmodifiableListView(_rows);
+
+  QueryManagerImpl get queryManager => query.queryManager;
+
+  @override
+  bool get isResultSet => columns != null;
+
+  bool contains(column) {
+    if (column is int) {
+      return column >= 0 && column < columns.length;
+    } else {
+      return columnIdentifierIndexes
+          .containsKey(queryManager.getColumnIdentifier(column));
+    }
+  }
+
+  QueryValueType getColumnType(column) {
+    if (column is int) {
+      if (column >= 0 && column < indexedColumnTypes.length) {
+        return indexedColumnTypes[column];
+      } else {
+        throw new ArgumentError("Column not exist $column");
+      }
+    } else {
+      return namedColumnTypes[queryManager.getColumnIdentifier(column)];
+    }
+  }
+
+  int getColumnIndex(column) {
+    if (column is int) {
+      if (column >= 0 && column < indexedColumnTypes.length) {
+        return column;
+      } else {
+        throw new ArgumentError("Column not exist $column");
+      }
+    } else {
+      var columnIdentifier = queryManager.getColumnIdentifier(column);
+      var i = columnIdentifierIndexes[columnIdentifier];
+      if (i != null) {
+        return i;
+      } else {
+        throw new ArgumentError("Column not exist $columnIdentifier");
+      }
+    }
+  }
+
+  QueryResultRow createQueryResultRow(List rowData) =>
+      new QueryResultRowImpl(this, rowData);
+}
+
+class QueryResultRowImpl implements QueryResultRow {
+  final List values;
+
+  final QueryResultImpl queryResult;
+
+  QueryResultRowImpl(this.queryResult, this.values);
+
+  QueryManagerImpl get queryManager => queryResult.queryManager;
 
   @override
   operator [](column) => get(column);
@@ -321,10 +381,7 @@ class QueryResultRowImpl implements QueryResultRow {
   String getString(column) => get(column, type: QueryValueType.STRING);
 
   @override
-  int getInt(column) => get(column, type: QueryValueType.INT);
-
-  @override
-  double getDouble(column) => get(column, type: QueryValueType.DOUBLE);
+  num getNum(column) => get(column, type: QueryValueType.NUM);
 
   @override
   bool getBool(column) => get(column, type: QueryValueType.BOOL);
@@ -339,19 +396,12 @@ class QueryResultRowImpl implements QueryResultRow {
   DateTime getTime(column) => get(column, type: QueryValueType.TIME);
 
   @override
-  bool contains(column) =>
-      columnIdentifiers.contains(queryManager.getColumnIdentifier(column));
+  bool contains(column) => queryResult.contains(column);
 
   @override
   get(column, {QueryValueType type}) {
-    var columnIdentifier = queryManager.getColumnIdentifier(column);
-
-    var i = columnIdentifiers.indexOf(columnIdentifier);
-
-    if (i != -1) {
-      return queryManager.convertValue(values[i], type: type);
-    } else {
-      throw new ArgumentError("Column not exist: $columnIdentifier");
-    }
+    var i = queryResult.getColumnIndex(column);
+    return queryManager.convertValue(values[i],
+        type: type ?? queryResult.getColumnType(i));
   }
 }
