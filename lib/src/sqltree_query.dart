@@ -3,16 +3,19 @@
 
 import "dart:async";
 
-import "package:sqltree/sqltree.dart";
+import "package:sqltree/sqltree.dart" as sql;
 
 abstract class QueryManager {
-  Query create(SqlStatement statement);
+  Query create(sql.SqlStatement statement);
 
   Future<QueryResult> execute(Query query);
 }
 
+abstract class QueryConnector {
+}
+
 abstract class Query {
-  SqlStatement get statement;
+  sql.SqlStatement get statement;
 
   QueryParameters get parameters;
 
