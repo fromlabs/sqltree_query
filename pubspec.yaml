@@ -1,6 +1,6 @@
 name: sqltree_query
 description: Query support for the sqltree library.
-version: 0.1.0
+version: 0.2.0
 author: Roberto Tassi <roberto.tassi@fromlabs.org>
 homepage: https://github.com/fromlabs/sqltree_query
 
@@ -8,8 +8,8 @@ environment:
   sdk: ">=1.8.0 <2.0.0"
 
 dependencies:
-  sqltree: "^0.2.0"
-  sqltree_schema: "^0.3.0"
+  sqltree: "^0.3.0"
+  sqltree_schema: "^0.4.0"
 
 dev_dependencies:
   test: '>=0.12.0 <0.13.0'

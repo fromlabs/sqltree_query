@@ -9,15 +9,25 @@ import "package:sqltree/sqltree.dart";
 import "package:sqltree_schema/sqltree_schema.dart" as schema;
 import "sqltree_query.dart";
 
-class QueryManagerImpl implements QueryManager {
-  @override
-  Query create(SqlStatement statement) => createQuery(statement);
+abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
+  Q create(SqlStatement statement) => createQuery(statement);
 
-  @override
-  Future<QueryResult> execute(Query query) {
+  Future<R> execute(Q query) {
     // TODO: implement execute
     throw new UnsupportedError("TODO");
   }
+
+  Q createQuery(SqlStatement statement);
+
+  R createSelectQueryResult(
+      Q query,
+      List<SqlNode> columns,
+      Map<String, int> columnIdentifierIndexes,
+      List<QueryValueType> indexedColumnTypes,
+      Map<String, QueryValueType> namedColumnTypes,
+      List<List> rows);
+
+  R createUpdateQueryResult(Q query, int affectedRows, int lastInsertId);
 
   prepareParameterValue(value, {QueryValueType type}) =>
       convertValue(value, type: type);
@@ -141,22 +151,6 @@ class QueryManagerImpl implements QueryManager {
     }
   }
 
-  Query createQuery(SqlStatement statement) => new QueryImpl(this, statement);
-
-  QueryResultImpl createSelectQueryResult(
-          QueryImpl query,
-          List<SqlNode> columns,
-          Map<String, int> columnIdentifierIndexes,
-          List<QueryValueType> indexedColumnTypes,
-          Map<String, QueryValueType> namedColumnTypes,
-          List<List> rows) =>
-      new QueryResultImpl.select(query, columns, columnIdentifierIndexes,
-          indexedColumnTypes, namedColumnTypes, rows);
-
-  QueryResultImpl createUpdateQueryResult(
-          QueryImpl query, int affectedRows, int lastInsertId) =>
-      new QueryResultImpl.update(query, affectedRows, lastInsertId);
-
   void checkUtcDateTime(DateTime dateTime) {
     if (!dateTime.isUtc) {
       throw new ArgumentError("Value is not in UTC $dateTime");
@@ -182,19 +176,60 @@ class QueryManagerImpl implements QueryManager {
       dateTime.microsecond);
 }
 
-class QueryImpl implements Query {
-  final QueryManagerImpl queryManager;
+class QueryManagerImpl extends BaseQueryManagerImpl<Query, QueryResult>
+    implements QueryManager {
+  @override
+  Future<QueryResult> execute(Query query) {
+    // TODO: implement execute
+    throw new UnsupportedError("TODO");
+  }
+
+  Query createQuery(SqlStatement statement) => new QueryImpl(this, statement);
+
+  QueryResult createSelectQueryResult(
+          Query query,
+          List<SqlNode> columns,
+          Map<String, int> columnIdentifierIndexes,
+          List<QueryValueType> indexedColumnTypes,
+          Map<String, QueryValueType> namedColumnTypes,
+          List<List> rows) =>
+      new QueryResultImpl.select(query as QueryImpl, columns,
+          columnIdentifierIndexes, indexedColumnTypes, namedColumnTypes, rows);
+
+  QueryResult createUpdateQueryResult(
+          Query query, int affectedRows, int lastInsertId) =>
+      new QueryResultImpl.update(
+          query as QueryImpl, affectedRows, lastInsertId);
+}
+
+abstract class BaseQueryImpl<P extends QueryParameters,
+    C extends QueryResultColumnTypes> {
+  final BaseQueryManagerImpl queryManager;
 
   final SqlStatement statement;
 
-  QueryParameters parameters;
+  P _parameters;
 
-  QueryResultColumnTypes resultColumnTypes;
+  C _resultColumnTypes;
 
-  QueryImpl(this.queryManager, this.statement) {
-    parameters = createQueryParameters();
-    resultColumnTypes = createQueryResultColumnTypes();
+  BaseQueryImpl(this.queryManager, this.statement) {
+    _parameters = createQueryParameters();
+    _resultColumnTypes = createQueryResultColumnTypes();
   }
+
+  P createQueryParameters();
+
+  C createQueryResultColumnTypes();
+
+  P get parameters => _parameters;
+
+  C get resultColumnTypes => _resultColumnTypes;
+}
+
+class QueryImpl extends BaseQueryImpl<QueryParameters, QueryResultColumnTypes>
+    implements Query {
+  QueryImpl(QueryManagerImpl queryManager, SqlStatement statement)
+      : super(queryManager, statement);
 
   QueryParameters createQueryParameters() => new QueryParametersImpl(this);
 
@@ -205,11 +240,11 @@ class QueryImpl implements Query {
 class QueryParametersImpl implements QueryParameters {
   final Map<dynamic, QueryParameter> parameters = {};
 
-  final QueryImpl query;
+  final BaseQueryImpl query;
 
   QueryParametersImpl(this.query);
 
-  QueryManagerImpl get queryManager => query.queryManager;
+  BaseQueryManagerImpl get queryManager => query.queryManager;
 
   @override
   void operator []=(parameter, value) {
@@ -248,11 +283,11 @@ class QueryParametersImpl implements QueryParameters {
 class QueryResultColumnTypesImpl implements QueryResultColumnTypes {
   final Map<dynamic, QueryValueType> columnTypes = {};
 
-  final QueryImpl query;
+  final BaseQueryImpl query;
 
   QueryResultColumnTypesImpl(this.query);
 
-  QueryManagerImpl get queryManager => query.queryManager;
+  BaseQueryManagerImpl get queryManager => query.queryManager;
 
   @override
   void operator []=(column, QueryValueType type) {
@@ -297,7 +332,7 @@ class QueryResultImpl implements QueryResult {
 
   final Map<String, QueryValueType> namedColumnTypes;
 
-  final QueryImpl query;
+  final BaseQueryImpl query;
 
   QueryResultImpl.select(this.query, this.columns, this.columnIdentifierIndexes,
       this.indexedColumnTypes, this.namedColumnTypes, List<List> data)
@@ -317,7 +352,7 @@ class QueryResultImpl implements QueryResult {
   @override
   List<QueryResultRow> get rows => new UnmodifiableListView(_rows);
 
-  QueryManagerImpl get queryManager => query.queryManager;
+  BaseQueryManagerImpl get queryManager => query.queryManager;
 
   @override
   bool get isResultSet => columns != null;
@@ -372,7 +407,7 @@ class QueryResultRowImpl implements QueryResultRow {
 
   QueryResultRowImpl(this.queryResult, this.values);
 
-  QueryManagerImpl get queryManager => queryResult.queryManager;
+  BaseQueryManagerImpl get queryManager => queryResult.queryManager;
 
   @override
   operator [](column) => get(column);
