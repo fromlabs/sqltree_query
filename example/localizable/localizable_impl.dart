@@ -1,8 +1,9 @@
 import "dart:async";
 
-import "localizable.dart";
 import "package:sqltree_query/sqltree_query.dart";
 import "package:sqltree/sqltree.dart";
+
+import "localizable.dart";
 
 class LocalizableQueryManagerImpl
     extends BaseQueryManagerImpl<LocalizableQuery, LocalizableQueryResult>

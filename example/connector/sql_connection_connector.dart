@@ -6,7 +6,8 @@ import "dart:async";
 import "package:sqlconnection/sql_connection_api.dart";
 import "package:sqltree_query/sqltree_query.dart";
 
-abstract class SqlConnectionQueryConnectorImpl implements QueryConnector {
+abstract class SqlConnectionQueryConnectorImpl extends BaseQueryConnectorImpl
+    implements QueryConnector {
   Future<SqlConnection> provideConnection();
 
   @override
@@ -43,7 +44,7 @@ abstract class SqlConnectionQueryConnectorImpl implements QueryConnector {
   }
 
   @override
-  Future<List<List>> query(String statement, [List parameters]) async {
+  Future<List<List>> queryInternal(String statement, [List parameters]) async {
     var connection = await provideConnection();
 
     var response = await connection.query(statement, parameters);

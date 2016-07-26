@@ -5,6 +5,8 @@ import "dart:async";
 
 import "package:sqltree/sqltree.dart" as sql;
 
+import "query_connector.dart";
+
 abstract class QueryManager {
   Query create(sql.SqlStatement statement);
 
@@ -34,29 +36,6 @@ abstract class QueryResultColumnTypes {
   void setDateTime(column);
   void setDate(column);
   void setTime(column);
-}
-
-class QueryValueType {
-  static const QueryValueType STRING = const QueryValueType("STRING");
-  static const QueryValueType NUM = const QueryValueType("NUM");
-  static const QueryValueType BOOL = const QueryValueType("BOOL");
-  static const QueryValueType DATETIME = const QueryValueType("DATETIME");
-  static const QueryValueType DATE = const QueryValueType("DATE");
-  static const QueryValueType TIME = const QueryValueType("TIME");
-
-  final String type;
-
-  const QueryValueType(this.type);
-
-  @override
-  String toString() => this.type;
-}
-
-class QueryParameter {
-  final value;
-  final QueryValueType type;
-
-  QueryParameter(this.value, {this.type});
 }
 
 abstract class QueryResult {

@@ -17,10 +17,12 @@ class QueryConnectorSchemaGenerator extends FileSchemaGenerator {
 
   QueryConnectorSchemaGenerator(String schemaName, String libraryPath,
       this._phisicalSchema, this._connector,
-      {TableFilter tableFilter, ColumnFilter columnFilter})
+      {TableFilter tableFilter,
+      ColumnFilter columnFilter,
+      String headerText: ""})
       : this._tableFilter = tableFilter,
         this._columnFilter = columnFilter,
-        super(schemaName, libraryPath);
+        super(schemaName, libraryPath, headerText: headerText);
 
   @override
   Future<String> generate() async {
