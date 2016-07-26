@@ -55,7 +55,7 @@ class QueryConnectorSchemaGenerator extends FileSchemaGenerator {
 
   Future<TableDescriptor> createTableDescriptor(
       String schema, String table) async {
-    var tableDescriptor = new TableDescriptor(table);
+    var tableDescriptor = newTableDescriptor(table);
 
     var data = await _connector.showColumns(schema, table);
 
@@ -76,4 +76,7 @@ class QueryConnectorSchemaGenerator extends FileSchemaGenerator {
 
     return tableDescriptor;
   }
+
+  TableDescriptor newTableDescriptor(String table) =>
+      new TableDescriptor(table);
 }
