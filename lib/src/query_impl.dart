@@ -116,6 +116,9 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       (queryConnector as BaseQueryConnectorImpl)
           .convertValue(value, type: type);
 
+  QueryValueType getValueType(value) =>
+      (queryConnector as BaseQueryConnectorImpl).getValueType(value);
+
   String getColumnIdentifier(column, {bool throwsError: true}) {
     if (column is String) {
       return column;
