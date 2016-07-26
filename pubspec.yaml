@@ -13,3 +13,11 @@ dependencies:
 
 dev_dependencies:
   test: '>=0.12.0 <0.13.0'
+  sqlconnection:
+    hosted:
+      name: sqlconnection
+      url: http://pub.primeapp.it:9091
+    version: ^1.11.0
+dependency_overrides:
+  sqlconnection:
+    path: /Users/hans/Documents/Clienti/PrimeApp/workspaces/appcatalog_project/sqlconnection

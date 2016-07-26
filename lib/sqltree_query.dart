@@ -3,5 +3,6 @@
 
 library sqltree_query;
 
-export 'src/sqltree_query.dart';
-export 'src/sqltree_query_impl.dart';
+export 'src/query_connector.dart';
+export 'src/query.dart';
+export 'src/query_impl.dart';

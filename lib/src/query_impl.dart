@@ -5,23 +5,112 @@ import "dart:async";
 
 import "package:collection/collection.dart";
 
-import "package:sqltree/sqltree.dart";
+import "package:sqltree/sqltree.dart" as sql;
 import "package:sqltree_schema/sqltree_schema.dart" as schema;
-import "sqltree_query.dart";
+import "query.dart";
+import "query_connector.dart";
 
 abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
-  Q create(SqlStatement statement) => createQuery(statement);
+  final QueryConnector queryConnector;
 
-  Future<R> execute(Q query) {
-    // TODO: implement execute
-    throw new UnsupportedError("TODO");
+  BaseQueryManagerImpl(this.queryConnector);
+
+  Q create(sql.SqlStatement statement) => createQuery(statement);
+
+  Future<R> execute(Q query) async {
+    var namedSql = sql.format(query.statement);
+
+    print("Query: ${sql.prettify(namedSql)}");
+
+    var convertedStatement = sql.convert(namedSql);
+
+    QueryParametersImpl queryParameters = query.parameters;
+
+    var parameters = mapMap(queryParameters.parameters,
+        key: (parameter, QueryParameter queryParameter) {
+      if (parameter is num) {
+        throw new UnsupportedError("Indexed parameter unsupported $parameter");
+      } else {
+        return getColumnIdentifier(parameter);
+      }
+    },
+        value: (parameter, QueryParameter queryParameter) =>
+            prepareParameterValue(queryParameter.value,
+                type: queryParameter.type));
+
+    print("Parameters: $parameters");
+
+    if (query.statement is sql.SqlSelectStatement) {
+      sql.SqlSelectStatement selectStatement = query.statement;
+      QueryResultColumnTypesImpl queryResultColumnTypes =
+          query.resultColumnTypes;
+
+      var columns = selectStatement.selectClause.children;
+
+      Map<String, QueryValueType> namedColumnTypes = {};
+      queryResultColumnTypes.columnTypes
+          .forEach((column, QueryValueType columnType) {
+        if (column is! num) {
+          namedColumnTypes[getColumnIdentifier(column)] = columnType;
+        }
+      });
+
+      List<QueryValueType> indexedColumnTypes = [];
+      Map<String, int> columnIdentifierIndexes = {};
+      var i = 0;
+      for (var column in columns) {
+        var columnType;
+        var columnIdentifier = getColumnIdentifier(column, throwsError: false);
+        if (columnIdentifier != null) {
+          columnType = namedColumnTypes[columnIdentifier];
+        } else {
+          columnIdentifier = getColumnIdentifier(i);
+        }
+
+        var positionalColumnType = queryResultColumnTypes.columnTypes[i];
+
+        if (columnType == null) {
+          columnType = positionalColumnType;
+        } else if (positionalColumnType != null) {
+          throw new ArgumentError(
+              "Column type already defined $columnIdentifier in position $i");
+        }
+
+        columnIdentifierIndexes[columnIdentifier] = i;
+        indexedColumnTypes.add(columnType);
+        i++;
+      }
+
+      print("Named column types: $namedColumnTypes");
+      print("Indexed column types: $indexedColumnTypes");
+      print("Column identifier indexes: $columnIdentifierIndexes");
+
+      // sarebbe interessante portare dentro al connector anche le trasformazioni dei valori
+      var data = await queryConnector.query(
+          convertedStatement.positionalParameterSql,
+          convertedStatement.applyNamedParameterValues(parameters));
+
+      var rows = data.map((List rowData) {
+        var row = [];
+        for (var i = 0; i < rowData.length; i++) {
+          row.add(prepareColumnValue(rowData[i], type: indexedColumnTypes[i]));
+        }
+        return row;
+      }).toList(growable: false);
+
+      return createSelectQueryResult(query, columns, columnIdentifierIndexes,
+          indexedColumnTypes, namedColumnTypes, rows);
+    } else {
+      // TODO: implement update/insert/delete statement
+      throw new UnsupportedError("TODO");
+    }
   }
 
-  Q createQuery(SqlStatement statement);
+  Q createQuery(sql.SqlStatement statement);
 
   R createSelectQueryResult(
       Q query,
-      List<SqlNode> columns,
+      List<sql.SqlNode> columns,
       Map<String, int> columnIdentifierIndexes,
       List<QueryValueType> indexedColumnTypes,
       Map<String, QueryValueType> namedColumnTypes,
@@ -136,8 +225,8 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       return column.toString();
     } else if (column is schema.SqlColumn) {
       return column.qualifiedName;
-    } else if (column is SqlNode) {
-      if (column.type == types.AS) {
+    } else if (column is sql.SqlNode) {
+      if (column.type == sql.types.AS) {
         return column.children[1].rawExpression;
       } else if (column.isRawNode) {
         return column.rawExpression;
@@ -178,17 +267,19 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
 
 class QueryManagerImpl extends BaseQueryManagerImpl<Query, QueryResult>
     implements QueryManager {
+  QueryManagerImpl(QueryConnector queryConnector) : super(queryConnector);
+
   @override
-  Future<QueryResult> execute(Query query) {
-    // TODO: implement execute
-    throw new UnsupportedError("TODO");
-  }
+  Future<QueryResult> execute(Query query) => super.execute(query);
 
-  Query createQuery(SqlStatement statement) => new QueryImpl(this, statement);
+  @override
+  Query createQuery(sql.SqlStatement statement) =>
+      new QueryImpl(this, statement);
 
+  @override
   QueryResult createSelectQueryResult(
           Query query,
-          List<SqlNode> columns,
+          List<sql.SqlNode> columns,
           Map<String, int> columnIdentifierIndexes,
           List<QueryValueType> indexedColumnTypes,
           Map<String, QueryValueType> namedColumnTypes,
@@ -196,6 +287,7 @@ class QueryManagerImpl extends BaseQueryManagerImpl<Query, QueryResult>
       new QueryResultImpl.select(query as QueryImpl, columns,
           columnIdentifierIndexes, indexedColumnTypes, namedColumnTypes, rows);
 
+  @override
   QueryResult createUpdateQueryResult(
           Query query, int affectedRows, int lastInsertId) =>
       new QueryResultImpl.update(
@@ -206,7 +298,7 @@ abstract class BaseQueryImpl<P extends QueryParameters,
     C extends QueryResultColumnTypes> {
   final BaseQueryManagerImpl queryManager;
 
-  final SqlStatement statement;
+  final sql.SqlStatement statement;
 
   P _parameters;
 
@@ -228,11 +320,13 @@ abstract class BaseQueryImpl<P extends QueryParameters,
 
 class QueryImpl extends BaseQueryImpl<QueryParameters, QueryResultColumnTypes>
     implements Query {
-  QueryImpl(QueryManagerImpl queryManager, SqlStatement statement)
+  QueryImpl(QueryManagerImpl queryManager, sql.SqlStatement statement)
       : super(queryManager, statement);
 
+  @override
   QueryParameters createQueryParameters() => new QueryParametersImpl(this);
 
+  @override
   QueryResultColumnTypes createQueryResultColumnTypes() =>
       new QueryResultColumnTypesImpl(this);
 }
@@ -324,7 +418,7 @@ class QueryResultImpl implements QueryResult {
   @override
   final int lastInsertId;
 
-  final List<SqlNode> columns;
+  final List<sql.SqlNode> columns;
 
   final Map<String, int> columnIdentifierIndexes;
 

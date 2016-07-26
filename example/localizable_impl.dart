@@ -7,11 +7,11 @@ import "package:sqltree/sqltree.dart";
 class LocalizableQueryManagerImpl
     extends BaseQueryManagerImpl<LocalizableQuery, LocalizableQueryResult>
     implements LocalizableQueryManager {
+  LocalizableQueryManagerImpl(QueryConnector queryConnector)
+      : super(queryConnector);
+
   @override
-  Future<LocalizableQueryResult> execute(Query query) {
-    // TODO: implement execute
-    throw new UnsupportedError("TODO");
-  }
+  Future<LocalizableQueryResult> execute(Query query) => super.execute(query);
 
   @override
   LocalizableQuery createQuery(SqlStatement statement) =>
