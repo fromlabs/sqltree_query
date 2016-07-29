@@ -28,7 +28,7 @@ query(QueryManager queryManager) async {
 
 main() async {
   var pool = new ConnectionPool(
-      host: '104.155.81.67', port: 3306, user: 'admin', password: 'admin');
+      host: '192.168.1.202', port: 3306, user: 'admin', password: 'admin');
 
   var connection;
   try {
