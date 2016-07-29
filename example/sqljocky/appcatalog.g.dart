@@ -119,6 +119,8 @@ abstract class APP_ACTIVATION_Table implements SqlTable {
 
   SqlColumn get ID_ACTIVATION;
 
+  SqlColumn get ID_DOMAIN;
+
   SqlColumn get DEVICE_UUID;
 
   SqlColumn get USERNAME;
@@ -157,7 +159,7 @@ abstract class APP_ACTIVATION_Table implements SqlTable {
 
 class _APP_ACTIVATION_TableImpl extends SqlTableImpl implements APP_ACTIVATION_Table {
   static final Set<String> _pkNames = new Set.from(["id_activation"]);
-  static final Set<String> _columnNames = new Set.from(["id_activation", "device_uuid", "username", "error_status", "device_sync_id", "device_application", "device_launcher", "device_info", "device_last_access_date", "debug", "logs", "error_logs", "prerelease", "creation_date", "device_catalogs", "device_last_update_date"]);
+  static final Set<String> _columnNames = new Set.from(["id_activation", "id_domain", "device_uuid", "username", "error_status", "device_sync_id", "device_application", "device_launcher", "device_info", "device_last_access_date", "debug", "logs", "error_logs", "prerelease", "creation_date", "device_catalogs", "device_last_update_date"]);
 
   _APP_ACTIVATION_TableImpl(SqlSchema schema) : super("app_activation", schema);
 
@@ -169,6 +171,9 @@ class _APP_ACTIVATION_TableImpl extends SqlTableImpl implements APP_ACTIVATION_T
 
   @override
   SqlColumn get ID_ACTIVATION => this["id_activation"];
+
+  @override
+  SqlColumn get ID_DOMAIN => this["id_domain"];
 
   @override
   SqlColumn get DEVICE_UUID => this["device_uuid"];
@@ -331,6 +336,8 @@ class _CURRENCY_TableImpl extends SqlTableImpl implements CURRENCY_Table {
 
 abstract class DOMAIN_Table implements SqlTable {
 
+  SqlColumn get ID_DOMAIN;
+
   SqlColumn get NAME;
 
   SqlColumn get DB_SCHEMA;
@@ -342,8 +349,8 @@ abstract class DOMAIN_Table implements SqlTable {
 }
 
 class _DOMAIN_TableImpl extends SqlTableImpl implements DOMAIN_Table {
-  static final Set<String> _pkNames = new Set.from([]);
-  static final Set<String> _columnNames = new Set.from(["name", "db_schema"]);
+  static final Set<String> _pkNames = new Set.from(["id_domain"]);
+  static final Set<String> _columnNames = new Set.from(["id_domain", "name", "db_schema"]);
 
   _DOMAIN_TableImpl(SqlSchema schema) : super("domain", schema);
 
@@ -352,6 +359,9 @@ class _DOMAIN_TableImpl extends SqlTableImpl implements DOMAIN_Table {
 
   _DOMAIN_TableImpl.cloneFrom(_DOMAIN_TableImpl target, bool freeze)
       : super.cloneFrom(target, freeze);
+
+  @override
+  SqlColumn get ID_DOMAIN => this["id_domain"];
 
   @override
   SqlColumn get NAME => this["name"];
@@ -691,6 +701,8 @@ abstract class PROFILE_Table implements SqlTable {
 
   SqlColumn get ID_PROFILE;
 
+  SqlColumn get ID_DOMAIN;
+
   SqlColumn get USERNAME;
 
   SqlColumn get PASSWORD;
@@ -712,8 +724,8 @@ abstract class PROFILE_Table implements SqlTable {
 }
 
 class _PROFILE_TableImpl extends SqlTableImpl implements PROFILE_Table {
-  static final Set<String> _pkNames = new Set.from(["id_profile"]);
-  static final Set<String> _columnNames = new Set.from(["id_profile", "username", "password", "firstname", "lastname", "email", "locale", "active"]);
+  static final Set<String> _pkNames = new Set.from(["id_profile", "id_domain"]);
+  static final Set<String> _columnNames = new Set.from(["id_profile", "id_domain", "username", "password", "firstname", "lastname", "email", "locale", "active"]);
 
   _PROFILE_TableImpl(SqlSchema schema) : super("profile", schema);
 
@@ -725,6 +737,9 @@ class _PROFILE_TableImpl extends SqlTableImpl implements PROFILE_Table {
 
   @override
   SqlColumn get ID_PROFILE => this["id_profile"];
+
+  @override
+  SqlColumn get ID_DOMAIN => this["id_domain"];
 
   @override
   SqlColumn get USERNAME => this["username"];
@@ -771,6 +786,8 @@ class _PROFILE_TableImpl extends SqlTableImpl implements PROFILE_Table {
 
 abstract class PROFILE_PERMISSION_Table implements SqlTable {
 
+  SqlColumn get ID_DOMAIN;
+
   SqlColumn get ID_PROFILE;
 
   SqlColumn get ID_PERMISSION;
@@ -782,8 +799,8 @@ abstract class PROFILE_PERMISSION_Table implements SqlTable {
 }
 
 class _PROFILE_PERMISSION_TableImpl extends SqlTableImpl implements PROFILE_PERMISSION_Table {
-  static final Set<String> _pkNames = new Set.from(["id_profile", "id_permission"]);
-  static final Set<String> _columnNames = new Set.from(["id_profile", "id_permission"]);
+  static final Set<String> _pkNames = new Set.from(["id_domain", "id_profile", "id_permission"]);
+  static final Set<String> _columnNames = new Set.from(["id_domain", "id_profile", "id_permission"]);
 
   _PROFILE_PERMISSION_TableImpl(SqlSchema schema) : super("profile_permission", schema);
 
@@ -792,6 +809,9 @@ class _PROFILE_PERMISSION_TableImpl extends SqlTableImpl implements PROFILE_PERM
 
   _PROFILE_PERMISSION_TableImpl.cloneFrom(_PROFILE_PERMISSION_TableImpl target, bool freeze)
       : super.cloneFrom(target, freeze);
+
+  @override
+  SqlColumn get ID_DOMAIN => this["id_domain"];
 
   @override
   SqlColumn get ID_PROFILE => this["id_profile"];
