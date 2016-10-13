@@ -21,7 +21,7 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
   Future<R> execute(Q query) async {
     var namedSql = sql.format(query.statement);
 
-    print("Query: ${sql.prettify(namedSql)}");
+    // print("Query: ${sql.prettify(namedSql)}");
 
     var convertedStatement = sql.convert(namedSql);
 
@@ -36,7 +36,7 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       }
     });
 
-    print("Parameters: $parameters");
+    // print("Parameters: $parameters");
 
     if (query.statement is sql.SqlSelectStatement) {
       sql.SqlSelectStatement selectStatement = query.statement;
@@ -80,9 +80,9 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
         i++;
       }
 
-      print("Named column types: $namedColumnTypes");
-      print("Indexed column types: $indexedColumnTypes");
-      print("Column identifier indexes: $columnIdentifierIndexes");
+      // print("Named column types: $namedColumnTypes");
+      // print("Indexed column types: $indexedColumnTypes");
+      // print("Column identifier indexes: $columnIdentifierIndexes");
 
       List<QueryParameter> positionalParameters = convertedStatement
           .applyNamedParameterValues(parameters) as List<QueryParameter>;
