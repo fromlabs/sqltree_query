@@ -44,7 +44,9 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       QueryResultColumnTypesImpl queryResultColumnTypes =
           query.resultColumnTypes;
 
-      var columns = selectStatement.selectClause.children;
+      var columns = selectStatement.selectClause.children
+          .where((node) => node.isEnabled)
+          .toList(growable: false);
 
       Map<String, QueryValueType> namedColumnTypes = {};
       queryResultColumnTypes.columnTypes
