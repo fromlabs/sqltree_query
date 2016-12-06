@@ -12,11 +12,30 @@ class LocalizableQueryManagerImpl
       : super(queryConnector);
 
   @override
+  LocalizableQuery<SqlSelectStatement> prepareSelect() => super.prepareSelect();
+
+  @override
+  LocalizableQuery<SqlInsertStatement> prepareInsert() => super.prepareInsert();
+
+  @override
+  LocalizableQuery<SqlUpdateStatement> prepareUpdate() => super.prepareUpdate();
+
+  @override
+  LocalizableQuery<SqlDeleteStatement> prepareDelete() => super.prepareDelete();
+
+  @override
   Future<LocalizableQueryResult> execute(Query query) => super.execute(query);
 
   @override
-  LocalizableQuery createQuery(SqlStatement statement) =>
-      new LocalizableQueryImpl(this, statement);
+  LocalizableQuery<SqlStatement /*S*/ > prepare/*<S extends SqlStatement>*/(
+          SqlStatement /*S*/ statement,
+          {QueryParameters parameters}) =>
+      super.prepare(statement, parameters: parameters);
+
+  @override
+  LocalizableQuery createQuery(
+          SqlStatement statement, QueryParameters parameters) =>
+      new LocalizableQueryImpl(this, statement, parameters);
 
   @override
   LocalizableQueryResult createSelectQueryResult(
@@ -36,22 +55,28 @@ class LocalizableQueryManagerImpl
 
 class LocalizableQueryImpl extends BaseQueryImpl<LocalizableQueryParameters,
     LocalizableQueryResultColumnTypes> implements LocalizableQuery {
-  LocalizableQueryImpl(
-      LocalizableQueryManagerImpl queryManager, SqlStatement statement)
-      : super(queryManager, statement);
+  LocalizableQueryImpl(LocalizableQueryManagerImpl queryManager,
+      SqlStatement statement, LocalizableQueryParameters parameters)
+      : super(queryManager, statement, parameters);
 
   @override
-  LocalizableQueryParameters createQueryParameters() =>
-      new LocalizableQueryParametersImpl(this);
+  LocalizableQueryParameters createQueryParameters(
+          LocalizableQueryParameters parameters) =>
+      new LocalizableQueryParametersImpl(this, parameters);
 
   @override
   LocalizableQueryResultColumnTypes createQueryResultColumnTypes() =>
       new LocalizableQueryResultColumnTypesImpl(this);
+
+  @override
+  LocalizableQuery clone({bool freeze}) => super.clone(freeze: freeze);
 }
 
 class LocalizableQueryParametersImpl extends QueryParametersImpl
     implements LocalizableQueryParameters {
-  LocalizableQueryParametersImpl(LocalizableQueryImpl query) : super(query);
+  LocalizableQueryParametersImpl(
+      LocalizableQueryImpl query, LocalizableQueryParametersImpl parameters)
+      : super(query, parameters);
 }
 
 class LocalizableQueryResultColumnTypesImpl extends QueryResultColumnTypesImpl

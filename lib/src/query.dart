@@ -8,17 +8,30 @@ import "package:sqltree/sqltree.dart" as sql;
 import "query_connector.dart";
 
 abstract class QueryManager {
-  Query create(sql.SqlStatement statement);
+  Query<sql.SqlSelectStatement> prepareSelect();
+
+  Query<sql.SqlInsertStatement> prepareInsert();
+
+  Query<sql.SqlUpdateStatement> prepareUpdate();
+
+  Query<sql.SqlDeleteStatement> prepareDelete();
+
+  Query<sql.SqlStatement /*S*/ >
+      prepare/*<S extends sql.SqlStatement>*/(
+          sql.SqlStatement /*S*/ statement,
+          {QueryParameters parameters});
 
   Future<QueryResult> execute(Query query);
 }
 
-abstract class Query {
-  sql.SqlStatement get statement;
+abstract class Query<S extends sql.SqlStatement> {
+  S get statement;
 
   QueryParameters get parameters;
 
   QueryResultColumnTypes get resultColumnTypes;
+
+  Query<S> clone({bool freeze});
 }
 
 abstract class QueryParameters {
@@ -48,6 +61,7 @@ abstract class QueryResult {
 }
 
 abstract class QueryResultRow {
+  int get columnsCount;
   bool contains(column);
   operator [](dynamic column);
   get(column, {QueryValueType type});

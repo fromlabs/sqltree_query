@@ -4,6 +4,7 @@
 import "dart:async";
 
 import "package:collection/collection.dart";
+import "package:logging/logging.dart";
 
 import "package:sqltree/sqltree.dart" as sql;
 import "package:sqltree_schema/sqltree_schema.dart" as schema;
@@ -11,17 +12,30 @@ import "query.dart";
 import "query_connector.dart";
 import "query_connector_impl.dart";
 
+final _libraryLogger = new Logger("sqltree_query");
+
 abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
   final QueryConnector queryConnector;
 
   BaseQueryManagerImpl(this.queryConnector);
 
-  Q create(sql.SqlStatement statement) => createQuery(statement);
+  Q prepareSelect() => prepare(sql.select());
+
+  Q prepareInsert() => prepare(sql.insert());
+
+  Q prepareUpdate() => prepare(sql.update());
+
+  Q prepareDelete() => prepare(sql.delete());
+
+  Q prepare(sql.SqlStatement statement, {QueryParameters parameters}) =>
+      createQuery(statement, parameters);
 
   Future<R> execute(Q query) async {
+    var watcher = new Stopwatch()..start();
+
     var namedSql = sql.format(query.statement);
 
-    // print("Query: ${sql.prettify(namedSql)}");
+    _libraryLogger.fine(() => "Query: ${sql.prettify(namedSql)}");
 
     var convertedStatement = sql.convert(namedSql);
 
@@ -36,7 +50,7 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       }
     });
 
-    // print("Parameters: $parameters");
+    _libraryLogger.fine(() => "Parameters: $parameters");
 
     if (query.statement is sql.SqlSelectStatement) {
       sql.SqlSelectStatement selectStatement = query.statement;
@@ -82,10 +96,6 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
         i++;
       }
 
-      // print("Named column types: $namedColumnTypes");
-      // print("Indexed column types: $indexedColumnTypes");
-      // print("Column identifier indexes: $columnIdentifierIndexes");
-
       List<QueryParameter> positionalParameters = convertedStatement
           .applyNamedParameterValues(parameters) as List<QueryParameter>;
 
@@ -93,6 +103,19 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
           convertedStatement.positionalParameterSql,
           parameters: positionalParameters,
           resultColumnTypes: indexedColumnTypes);
+
+      if (_libraryLogger.isLoggable(Level.FINEST)) {
+        var buffer = new StringBuffer();
+        buffer.writeln("Result: ");
+        var l = 0;
+        for (var row in rows) {
+          buffer.writeln("  $l: $row");
+          l++;
+        }
+        _libraryLogger.finest(buffer);
+      }
+
+      _libraryLogger.finer(() => "Result size: ${rows.length} [${watcher.elapsed.inMilliseconds} ms]");
 
       return createSelectQueryResult(query, columns, columnIdentifierIndexes,
           indexedColumnTypes, namedColumnTypes, rows);
@@ -102,7 +125,7 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
     }
   }
 
-  Q createQuery(sql.SqlStatement statement);
+  Q createQuery(sql.SqlStatement statement, QueryParameters parameters);
 
   R createSelectQueryResult(
       Q query,
@@ -149,11 +172,29 @@ class QueryManagerImpl extends BaseQueryManagerImpl<Query, QueryResult>
   QueryManagerImpl(QueryConnector queryConnector) : super(queryConnector);
 
   @override
+  Query<sql.SqlSelectStatement> prepareSelect() => super.prepareSelect();
+
+  @override
+  Query<sql.SqlInsertStatement> prepareInsert() => super.prepareInsert();
+
+  @override
+  Query<sql.SqlUpdateStatement> prepareUpdate() => super.prepareUpdate();
+
+  @override
+  Query<sql.SqlDeleteStatement> prepareDelete() => super.prepareDelete();
+
+  @override
+  Query<sql.SqlStatement /*S*/ > prepare/*<S extends sql.SqlStatement>*/(
+          sql.SqlStatement /*S*/ statement,
+          {QueryParameters parameters}) =>
+      super.prepare(statement, parameters: parameters);
+
+  @override
   Future<QueryResult> execute(Query query) => super.execute(query);
 
   @override
-  Query createQuery(sql.SqlStatement statement) =>
-      new QueryImpl(this, statement);
+  Query createQuery(sql.SqlStatement statement, QueryParameters parameters) =>
+      new QueryImpl(this, statement, parameters);
 
   @override
   QueryResult createSelectQueryResult(
@@ -183,27 +224,33 @@ abstract class BaseQueryImpl<P extends QueryParameters,
 
   C _resultColumnTypes;
 
-  BaseQueryImpl(this.queryManager, this.statement) {
-    _parameters = createQueryParameters();
+  BaseQueryImpl(this.queryManager, this.statement, P parameters) {
+    _parameters = createQueryParameters(parameters);
     _resultColumnTypes = createQueryResultColumnTypes();
   }
 
-  P createQueryParameters();
+  P createQueryParameters(P parameters);
 
   C createQueryResultColumnTypes();
 
   P get parameters => _parameters;
 
   C get resultColumnTypes => _resultColumnTypes;
+
+  Query clone({bool freeze}) =>
+      queryManager.prepare(statement.clone(freeze: freeze),
+          parameters: _parameters) as Query;
 }
 
 class QueryImpl extends BaseQueryImpl<QueryParameters, QueryResultColumnTypes>
     implements Query {
-  QueryImpl(QueryManagerImpl queryManager, sql.SqlStatement statement)
-      : super(queryManager, statement);
+  QueryImpl(QueryManagerImpl queryManager, sql.SqlStatement statement,
+      QueryParameters parameters)
+      : super(queryManager, statement, parameters);
 
   @override
-  QueryParameters createQueryParameters() => new QueryParametersImpl(this);
+  QueryParameters createQueryParameters(QueryParameters parameters) =>
+      new QueryParametersImpl(this, parameters);
 
   @override
   QueryResultColumnTypes createQueryResultColumnTypes() =>
@@ -215,7 +262,13 @@ class QueryParametersImpl implements QueryParameters {
 
   final BaseQueryImpl query;
 
-  QueryParametersImpl(this.query);
+  QueryParametersImpl(this.query, QueryParametersImpl parameters) {
+    if (parameters != null) {
+      parameters.parameters.forEach((k, p) {
+        set(k, p.value, type: p.type);
+      });
+    }
+  }
 
   BaseQueryManagerImpl get queryManager => query.queryManager;
 
@@ -412,4 +465,7 @@ class QueryResultRowImpl implements QueryResultRow {
     return queryManager.convertValue(values[i],
         type: type ?? queryResult.getColumnType(i));
   }
+
+  @override
+  int get columnsCount => values.length;
 }

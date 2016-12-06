@@ -13,7 +13,7 @@ import "appcatalog.g.dart";
 final AppCatalog_Schema DB = createAppCatalog_Schema("appcatalog");
 
 query(QueryManager queryManager) async {
-  var query = queryManager.create(sql.select(DB.PROFILE.columns)
+  var query = queryManager.prepare(sql.select(DB.PROFILE.columns)
     ..from(DB.PROFILE)
     ..limit(10));
 

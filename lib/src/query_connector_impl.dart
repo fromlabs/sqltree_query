@@ -80,7 +80,9 @@ abstract class BaseQueryConnectorImpl implements QueryConnector {
 
         return getDateTimeWithoutTime(value);
       } else if (value is String) {
-        var dateTime = DateTime.parse(value);
+        var dateTime = DateTime.parse(value.length > "0000-00-00".length
+            ? value
+            : "${value}T00:00:00.000Z");
 
         checkUtcDateTime(dateTime);
 

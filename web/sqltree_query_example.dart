@@ -8,7 +8,7 @@ main() async {
   // 1. preparazione della query
   QueryManager queryManager;
   // statement
-  Query query = queryManager.create(sql.select());
+  Query query = queryManager.prepare(sql.select());
   // parametri
   query.parameters["status"] = true;
   query.parameters.set("status", true);

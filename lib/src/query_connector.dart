@@ -24,6 +24,9 @@ class QueryParameter {
   final QueryValueType type;
 
   QueryParameter(this.value, {this.type});
+
+  @override
+  String toString() => "$value${type != null ? " [$type]" : ""}";
 }
 
 abstract class QueryConnector {
