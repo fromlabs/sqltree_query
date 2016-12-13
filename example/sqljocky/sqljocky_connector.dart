@@ -62,4 +62,22 @@ abstract class SqlJockyQueryConnectorImpl extends BaseQueryConnectorImpl
         .map((row) => row.toList(growable: false))
         .toList(growable: false);
   }
+
+  @override
+  Future<List<int>> updateInternal(String statement, [List parameters]) async {
+    var connection = await provideConnection();
+
+    var response = await connection.prepare(statement);
+
+    var results = await response.execute(parameters);
+
+    var rows =
+        results.affectedRows != null ? new List(results.affectedRows) : [];
+
+    if (rows.isNotEmpty) {
+      rows[rows.length - 1] = results.insertId;
+    }
+
+    return rows;
+  }
 }

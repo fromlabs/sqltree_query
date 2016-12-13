@@ -37,4 +37,7 @@ abstract class QueryConnector {
   Future<List<List>> query(String statement,
       {List<QueryParameter> parameters: const <QueryParameter>[],
       List<QueryValueType> resultColumnTypes: const <QueryValueType>[]});
+
+  Future<List<int>> update(String statement,
+      {List<QueryParameter> parameters: const <QueryParameter>[]});
 }

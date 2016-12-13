@@ -14,23 +14,27 @@ import "query_connector_impl.dart";
 
 final _libraryLogger = new Logger("sqltree_query");
 
-abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
+abstract class BaseQueryManagerImpl<Q extends Query> {
   final QueryConnector queryConnector;
 
   BaseQueryManagerImpl(this.queryConnector);
 
-  Q prepareSelect() => prepare(sql.select());
+  Q prepareSelect({QueryParameters initialParameters}) =>
+      prepare(sql.select(), initialParameters: initialParameters);
 
-  Q prepareInsert() => prepare(sql.insert());
+  Q prepareInsert({QueryParameters initialParameters}) =>
+      prepare(sql.insert(), initialParameters: initialParameters);
 
-  Q prepareUpdate() => prepare(sql.update());
+  Q prepareUpdate({QueryParameters initialParameters}) =>
+      prepare(sql.update(), initialParameters: initialParameters);
 
-  Q prepareDelete() => prepare(sql.delete());
+  Q prepareDelete({QueryParameters initialParameters}) =>
+      prepare(sql.delete(), initialParameters: initialParameters);
 
-  Q prepare(sql.SqlStatement statement, {QueryParameters parameters}) =>
-      createQuery(statement, parameters);
+  Q prepare(sql.SqlStatement statement, {QueryParameters initialParameters}) =>
+      createQuery(statement, initialParameters);
 
-  Future<R> execute(Q query) async {
+  Future<QueryResult> execute(Q query) async {
     var watcher = new Stopwatch()..start();
 
     var namedSql = sql.format(query.statement);
@@ -51,6 +55,9 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
     });
 
     _libraryLogger.fine(() => "Parameters: $parameters");
+
+    List<QueryParameter> positionalParameters = convertedStatement
+        .applyNamedParameterValues(parameters) as List<QueryParameter>;
 
     if (query.statement is sql.SqlSelectStatement) {
       sql.SqlSelectStatement selectStatement = query.statement;
@@ -96,9 +103,6 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
         i++;
       }
 
-      List<QueryParameter> positionalParameters = convertedStatement
-          .applyNamedParameterValues(parameters) as List<QueryParameter>;
-
       var rows = await queryConnector.query(
           convertedStatement.positionalParameterSql,
           parameters: positionalParameters,
@@ -115,19 +119,29 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
         _libraryLogger.finest(buffer);
       }
 
-      _libraryLogger.finer(() => "Result size: ${rows.length} [${watcher.elapsed.inMilliseconds} ms]");
+      _libraryLogger.finer(() =>
+          "Result size: ${rows.length} [${watcher.elapsed.inMilliseconds} ms]");
 
       return createSelectQueryResult(query, columns, columnIdentifierIndexes,
           indexedColumnTypes, namedColumnTypes, rows);
     } else {
-      // TODO: implement update/insert/delete statement
-      throw new UnsupportedError("TODO");
+      var rows = await queryConnector.update(
+          convertedStatement.positionalParameterSql,
+          parameters: positionalParameters);
+
+      int affectedRows = rows.length;
+      int lastInsertId = rows.isNotEmpty ? rows.last : null;
+
+      _libraryLogger.finer(() =>
+          "Update result: ${lastInsertId != null ? "last insert id $lastInsertId, " : ""}affected rows $affectedRows [${watcher.elapsed.inMilliseconds} ms]");
+
+      return createUpdateQueryResult(query, affectedRows, lastInsertId);
     }
   }
 
-  Q createQuery(sql.SqlStatement statement, QueryParameters parameters);
+  Q createQuery(sql.SqlStatement statement, QueryParameters initialParameters);
 
-  R createSelectQueryResult(
+  QueryResult createSelectQueryResult(
       Q query,
       List<sql.SqlNode> columns,
       Map<String, int> columnIdentifierIndexes,
@@ -135,7 +149,8 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
       Map<String, QueryValueType> namedColumnTypes,
       List<List> rows);
 
-  R createUpdateQueryResult(Q query, int affectedRows, int lastInsertId);
+  QueryResult createUpdateQueryResult(
+      Q query, int affectedRows, int lastInsertId);
 
   convertValue(value, {QueryValueType type}) =>
       (queryConnector as BaseQueryConnectorImpl)
@@ -167,34 +182,40 @@ abstract class BaseQueryManagerImpl<Q extends Query, R extends QueryResult> {
   }
 }
 
-class QueryManagerImpl extends BaseQueryManagerImpl<Query, QueryResult>
+class QueryManagerImpl extends BaseQueryManagerImpl<Query>
     implements QueryManager {
   QueryManagerImpl(QueryConnector queryConnector) : super(queryConnector);
 
   @override
-  Query<sql.SqlSelectStatement> prepareSelect() => super.prepareSelect();
+  Query<sql.SqlSelectStatement> prepareSelect(
+          {QueryParameters initialParameters}) =>
+      super.prepareSelect(initialParameters: initialParameters);
 
   @override
-  Query<sql.SqlInsertStatement> prepareInsert() => super.prepareInsert();
+  Query<sql.SqlInsertStatement> prepareInsert(
+          {QueryParameters initialParameters}) =>
+      super.prepareInsert(initialParameters: initialParameters);
 
   @override
-  Query<sql.SqlUpdateStatement> prepareUpdate() => super.prepareUpdate();
+  Query<sql.SqlUpdateStatement> prepareUpdate(
+          {QueryParameters initialParameters}) =>
+      super.prepareUpdate(initialParameters: initialParameters);
 
   @override
-  Query<sql.SqlDeleteStatement> prepareDelete() => super.prepareDelete();
+  Query<sql.SqlDeleteStatement> prepareDelete(
+          {QueryParameters initialParameters}) =>
+      super.prepareDelete(initialParameters: initialParameters);
 
   @override
   Query<sql.SqlStatement /*S*/ > prepare/*<S extends sql.SqlStatement>*/(
           sql.SqlStatement /*S*/ statement,
-          {QueryParameters parameters}) =>
-      super.prepare(statement, parameters: parameters);
+          {QueryParameters initialParameters}) =>
+      super.prepare(statement, initialParameters: initialParameters);
 
   @override
-  Future<QueryResult> execute(Query query) => super.execute(query);
-
-  @override
-  Query createQuery(sql.SqlStatement statement, QueryParameters parameters) =>
-      new QueryImpl(this, statement, parameters);
+  Query createQuery(
+          sql.SqlStatement statement, QueryParameters initialParameters) =>
+      new QueryImpl(this, statement, initialParameters);
 
   @override
   QueryResult createSelectQueryResult(
@@ -224,12 +245,12 @@ abstract class BaseQueryImpl<P extends QueryParameters,
 
   C _resultColumnTypes;
 
-  BaseQueryImpl(this.queryManager, this.statement, P parameters) {
-    _parameters = createQueryParameters(parameters);
+  BaseQueryImpl(this.queryManager, this.statement, P initialParameters) {
+    _parameters = createQueryParameters(initialParameters);
     _resultColumnTypes = createQueryResultColumnTypes();
   }
 
-  P createQueryParameters(P parameters);
+  P createQueryParameters(P initialParameters);
 
   C createQueryResultColumnTypes();
 
@@ -239,18 +260,20 @@ abstract class BaseQueryImpl<P extends QueryParameters,
 
   Query clone({bool freeze}) =>
       queryManager.prepare(statement.clone(freeze: freeze),
-          parameters: _parameters) as Query;
+          initialParameters: _parameters) as Query;
+
+  Future<QueryResult> execute() => queryManager.execute(this as Query);
 }
 
 class QueryImpl extends BaseQueryImpl<QueryParameters, QueryResultColumnTypes>
     implements Query {
   QueryImpl(QueryManagerImpl queryManager, sql.SqlStatement statement,
-      QueryParameters parameters)
-      : super(queryManager, statement, parameters);
+      QueryParameters initialParameters)
+      : super(queryManager, statement, initialParameters);
 
   @override
-  QueryParameters createQueryParameters(QueryParameters parameters) =>
-      new QueryParametersImpl(this, parameters);
+  QueryParameters createQueryParameters(QueryParameters initialParameters) =>
+      new QueryParametersImpl(this, initialParameters);
 
   @override
   QueryResultColumnTypes createQueryResultColumnTypes() =>
@@ -262,9 +285,9 @@ class QueryParametersImpl implements QueryParameters {
 
   final BaseQueryImpl query;
 
-  QueryParametersImpl(this.query, QueryParametersImpl parameters) {
-    if (parameters != null) {
-      parameters.parameters.forEach((k, p) {
+  QueryParametersImpl(this.query, QueryParametersImpl initialParameters) {
+    if (initialParameters != null) {
+      initialParameters.parameters.forEach((k, p) {
         set(k, p.value, type: p.type);
       });
     }

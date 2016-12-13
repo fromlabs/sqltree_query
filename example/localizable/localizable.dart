@@ -4,19 +4,21 @@ import "package:sqltree_query/sqltree_query.dart";
 import "package:sqltree/sqltree.dart";
 
 abstract class LocalizableQueryManager implements QueryManager {
-  LocalizableQuery<SqlSelectStatement> prepareSelect();
+  LocalizableQuery<SqlSelectStatement> prepareSelect(
+      {QueryParameters initialParameters});
 
-  LocalizableQuery<SqlInsertStatement> prepareInsert();
+  LocalizableQuery<SqlInsertStatement> prepareInsert(
+      {QueryParameters initialParameters});
 
-  LocalizableQuery<SqlUpdateStatement> prepareUpdate();
+  LocalizableQuery<SqlUpdateStatement> prepareUpdate(
+      {QueryParameters initialParameters});
 
-  LocalizableQuery<SqlDeleteStatement> prepareDelete();
+  LocalizableQuery<SqlDeleteStatement> prepareDelete(
+      {QueryParameters initialParameters});
 
   LocalizableQuery<SqlStatement /*S*/ > prepare/*<S extends SqlStatement>*/(
       SqlStatement /*S*/ statement,
-      {QueryParameters parameters});
-
-  Future<LocalizableQueryResult> execute(Query query);
+      {QueryParameters initialParameters});
 }
 
 abstract class LocalizableQuery<S extends SqlStatement> implements Query<S> {
@@ -25,6 +27,8 @@ abstract class LocalizableQuery<S extends SqlStatement> implements Query<S> {
   LocalizableQueryResultColumnTypes get resultColumnTypes;
 
   LocalizableQuery<S> clone({bool freeze});
+
+  Future<LocalizableQueryResult> execute();
 }
 
 abstract class LocalizableQueryParameters implements QueryParameters {}

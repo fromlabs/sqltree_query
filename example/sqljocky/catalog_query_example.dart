@@ -17,7 +17,7 @@ query(QueryManager queryManager) async {
     ..from(DB.PROFILE)
     ..limit(10));
 
-  var result = await queryManager.execute(query);
+  var result = await query.execute();
 
   print("Rows: ${result.rows.length}");
   for (var row in result.rows) {

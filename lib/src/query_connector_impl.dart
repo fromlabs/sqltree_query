@@ -8,6 +8,8 @@ import "query_connector.dart";
 abstract class BaseQueryConnectorImpl implements QueryConnector {
   Future<List<List>> queryInternal(String statement, [List parameters]);
 
+  Future<List<int>> updateInternal(String statement, [List parameters]);
+
   @override
   Future<List<List>> query(String statement,
       {List<QueryParameter> parameters: const <QueryParameter>[],
@@ -27,6 +29,18 @@ abstract class BaseQueryConnectorImpl implements QueryConnector {
       }
       return row;
     }).toList(growable: false);
+  }
+
+  @override
+  Future<List<int>> update(String statement,
+      {List<QueryParameter> parameters: const <QueryParameter>[]}) async {
+    var valueParameters = parameters
+        .map((QueryParameter queryParameter) => prepareParameterValue(
+            queryParameter.value,
+            type: queryParameter.type))
+        .toList();
+
+    return updateInternal(statement, valueParameters);
   }
 
   prepareParameterValue(value, {QueryValueType type}) =>

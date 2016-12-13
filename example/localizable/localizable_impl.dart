@@ -5,37 +5,41 @@ import "package:sqltree/sqltree.dart";
 
 import "localizable.dart";
 
-class LocalizableQueryManagerImpl
-    extends BaseQueryManagerImpl<LocalizableQuery, LocalizableQueryResult>
+class LocalizableQueryManagerImpl extends BaseQueryManagerImpl<LocalizableQuery>
     implements LocalizableQueryManager {
   LocalizableQueryManagerImpl(QueryConnector queryConnector)
       : super(queryConnector);
 
   @override
-  LocalizableQuery<SqlSelectStatement> prepareSelect() => super.prepareSelect();
+  LocalizableQuery<SqlSelectStatement> prepareSelect(
+          {QueryParameters initialParameters}) =>
+      super.prepareSelect(initialParameters: initialParameters);
 
   @override
-  LocalizableQuery<SqlInsertStatement> prepareInsert() => super.prepareInsert();
+  LocalizableQuery<SqlInsertStatement> prepareInsert(
+          {QueryParameters initialParameters}) =>
+      super.prepareInsert(initialParameters: initialParameters);
 
   @override
-  LocalizableQuery<SqlUpdateStatement> prepareUpdate() => super.prepareUpdate();
+  LocalizableQuery<SqlUpdateStatement> prepareUpdate(
+          {QueryParameters initialParameters}) =>
+      super.prepareUpdate(initialParameters: initialParameters);
 
   @override
-  LocalizableQuery<SqlDeleteStatement> prepareDelete() => super.prepareDelete();
-
-  @override
-  Future<LocalizableQueryResult> execute(Query query) => super.execute(query);
+  LocalizableQuery<SqlDeleteStatement> prepareDelete(
+          {QueryParameters initialParameters}) =>
+      super.prepareDelete(initialParameters: initialParameters);
 
   @override
   LocalizableQuery<SqlStatement /*S*/ > prepare/*<S extends SqlStatement>*/(
           SqlStatement /*S*/ statement,
-          {QueryParameters parameters}) =>
-      super.prepare(statement, parameters: parameters);
+          {QueryParameters initialParameters}) =>
+      super.prepare(statement, initialParameters: initialParameters);
 
   @override
   LocalizableQuery createQuery(
-          SqlStatement statement, QueryParameters parameters) =>
-      new LocalizableQueryImpl(this, statement, parameters);
+          SqlStatement statement, QueryParameters initialParameters) =>
+      new LocalizableQueryImpl(this, statement, initialParameters);
 
   @override
   LocalizableQueryResult createSelectQueryResult(
@@ -56,13 +60,13 @@ class LocalizableQueryManagerImpl
 class LocalizableQueryImpl extends BaseQueryImpl<LocalizableQueryParameters,
     LocalizableQueryResultColumnTypes> implements LocalizableQuery {
   LocalizableQueryImpl(LocalizableQueryManagerImpl queryManager,
-      SqlStatement statement, LocalizableQueryParameters parameters)
-      : super(queryManager, statement, parameters);
+      SqlStatement statement, LocalizableQueryParameters initialParameters)
+      : super(queryManager, statement, initialParameters);
 
   @override
   LocalizableQueryParameters createQueryParameters(
-          LocalizableQueryParameters parameters) =>
-      new LocalizableQueryParametersImpl(this, parameters);
+          LocalizableQueryParameters initialParameters) =>
+      new LocalizableQueryParametersImpl(this, initialParameters);
 
   @override
   LocalizableQueryResultColumnTypes createQueryResultColumnTypes() =>
@@ -70,13 +74,16 @@ class LocalizableQueryImpl extends BaseQueryImpl<LocalizableQueryParameters,
 
   @override
   LocalizableQuery clone({bool freeze}) => super.clone(freeze: freeze);
+
+  @override
+  Future<LocalizableQueryResult> execute() => super.execute();
 }
 
 class LocalizableQueryParametersImpl extends QueryParametersImpl
     implements LocalizableQueryParameters {
-  LocalizableQueryParametersImpl(
-      LocalizableQueryImpl query, LocalizableQueryParametersImpl parameters)
-      : super(query, parameters);
+  LocalizableQueryParametersImpl(LocalizableQueryImpl query,
+      LocalizableQueryParametersImpl initialParameters)
+      : super(query, initialParameters);
 }
 
 class LocalizableQueryResultColumnTypesImpl extends QueryResultColumnTypesImpl

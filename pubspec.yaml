@@ -1,6 +1,6 @@
 name: sqltree_query
 description: Query support for the sqltree library.
-version: 0.4.0
+version: 0.5.0
 author: Roberto Tassi <roberto.tassi@fromlabs.org>
 homepage: https://github.com/fromlabs/sqltree_query
 environment:

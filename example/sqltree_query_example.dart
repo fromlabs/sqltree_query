@@ -70,7 +70,7 @@ test3() async {
   query.resultColumnTypes["status"] = QueryValueType.BOOL;
 
   // 2. esecuzione della query e recupero ResultSet
-  var result = await queryManager.execute(query);
+  var result = await query.execute();
 
   // 3. lettura resultset
   if (result.isResultSet) {
@@ -103,7 +103,7 @@ test4() async {
   query.resultColumnTypes["status"] = QueryValueType.BOOL;
 
   // 2. esecuzione della query e recupero ResultSet
-  var result = await queryManager.execute(query);
+  var result = await query.execute();
 
   // 3. lettura resultset
   if (result.isResultSet) {
